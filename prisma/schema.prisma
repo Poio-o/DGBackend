@@ -6,3 +6,27 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model User {
+  id          String       @id @default(cuid())
+  email       String       @unique
+  username    String       @unique
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  credentials Credential[]
+
+  @@map("users")
+}
+
+model Credential {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  provider  String
+  secret    String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@map("credentials")
+}

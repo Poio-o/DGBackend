@@ -1,5 +1,51 @@
 # Changelog
 
+## v0.2.1 - Modelo de Datos de Autenticación, Migración de Usuarios y Credenciales [SUB-02-1]
+
+### Añadido
+- Modelado relacional en Prisma (`prisma/schema.prisma`) para las entidades `User` y `Credential`
+- Relación 1 a N entre usuarios y múltiples credenciales con eliminación en cascada (`onDelete: Cascade`)
+- Restricciones de unicidad en base de datos para `users.email`, `users.username` y la tupla compuesta `credentials(user_id, provider)`
+- Mapeo declarativo de modelos a tablas (`users`, `credentials`) y columnas a convención PostgreSQL snake_case (`created_at`, `updated_at`, `user_id`)
+- Script de migración SQL inicial (`prisma/migrations/20261110182000_init_users/migration.sql`) con DDL para PostgreSQL
+- Configuración de variables de entorno para autenticación (`JWT_SECRET` y `JWT_EXPIRES_IN=30d`) en `.env` y `.env.example`
+- Instalación de librerías para hashing seguro y tokens: `bcryptjs` y `jsonwebtoken`
+- Tipado estricto para dependencias criptográficas con `@types/bcryptjs` y `@types/jsonwebtoken`
+- Generación del cliente tipado de Prisma (`@prisma/client`) con soporte para consultas sobre `prisma.user` y `prisma.credential`
+
+### Base de datos y persistencia
+- **Tablas creadas en la migración inicial**:
+  - `users`: Identificador único (CUID), email único, username único, marcas de tiempo de creación (`created_at`) y actualización (`updated_at`)
+  - `credentials`: Identificador único (CUID), referencia al usuario (`user_id`), tipo de proveedor (`provider`), hash secreto (`secret`), marcas de tiempo
+- **Integridad referencial y restricciones**:
+  - Clave foránea `credentials_user_id_fkey` con `ON DELETE CASCADE` y `ON UPDATE CASCADE`
+  - Índices únicos `users_email_key`, `users_username_key` y `credentials_user_id_provider_key`
+
+### Archivos creados
+- `prisma/migrations/20261110182000_init_users/migration.sql` - Script SQL DDL de la migración inicial
+- `.env` - Configuración de variables de entorno locales (puerto, base de datos y JWT)
+
+### Archivos modificados
+- `prisma/schema.prisma` - Definición declarativa de los modelos `User` y `Credential`
+- `.env.example` - Plantilla con las nuevas variables de entorno para JWT
+- `package.json` - Inclusión de `bcryptjs`, `jsonwebtoken` y tipos de desarrollo
+
+### Dependencias añadidas
+```json
+{
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.8"
+  }
+}
+```
+
+---
+
 ## v0.2.0 - Express básico, PostgreSQL con Docker, Prisma ORM y Winston
 
 ### Añadido
