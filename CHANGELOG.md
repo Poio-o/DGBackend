@@ -1,5 +1,63 @@
 # Changelog
 
+## v0.2.3 - Middleware de Autenticación Bearer y Endpoint de Perfil [SUB-02-3]
+
+### Añadido
+- Middleware de autenticación `authMiddleware` (`src/middleware/authMiddleware.ts`) para intercepción y validación del header `Authorization: Bearer <token>`
+- Decodificación y verificación criptográfica de tokens JWT mediante `jwt.verify`
+- Manejo estricto de rechazo con código `401 Unauthorized` ante tokens ausentes, malformados o expirados
+- Extensión del espacio de nombres de Express para tipado de `req.user` con la interfaz `JwtPayload`
+- Método `getProfile` en `AuthService` para recuperar la información del usuario autenticado en base de datos
+- Método `me` en `AuthController` para resolver la identidad del usuario actual
+- Pruebas unitarias en `src/modules/auth/auth.test.ts` para verificar la protección del middleware (rechazo de peticiones sin cabecera, rechazo de tokens corruptos y paso exitoso con token firmado)
+
+### Endpoints
+- `GET /api/v1/auth/me` - Ruta protegida mediante `authMiddleware` que devuelve los datos del perfil activo
+
+### Archivos creados
+- `src/middleware/authMiddleware.ts` - Middleware de verificación y decodificación de tokens Bearer
+
+### Archivos modificados
+- `src/modules/auth/auth.service.ts` - Implementación del método `getProfile`
+- `src/modules/auth/auth.controller.ts` - Implementación del método `me`
+- `src/modules/auth/auth.routes.ts` - Registro de la ruta protegida `GET /me`
+- `src/modules/auth/auth.test.ts` - Casos de prueba unitarios para el middleware de autenticación
+
+---
+
+## v0.2.2 - Endpoints y Servicios de Registro y Login con JWT [SUB-02-2]
+
+### Añadido
+- Módulo de autenticación en `src/modules/auth/` organizado en arquitectura por capas (rutas, controlador, servicio y DTOs)
+- Servicio `AuthService` con métodos de registro (`register`) e inicio de sesión (`login`)
+- Hashing unidireccional de contraseñas mediante `bcryptjs` con factor de coste de salt 10
+- Creación atómica de usuario y credencial dentro de una transacción con `prisma.$transaction`
+- Generación y firma de tokens JWT Bearer con tiempo de expiración extendido (30 días)
+- Controlador `AuthController` con validaciones de campos obligatorios, formato de email y longitud mínima de credenciales
+- Manejo de códigos HTTP semánticos (`201 Created` para registro, `200 OK` para login, `400 Bad Request`, `401 Unauthorized` y `409 Conflict`)
+- Clase utilitaria `AppError` en `src/utils/errors.ts` para propagación estructurada de errores con código de estado HTTP
+- Pruebas unitarias en `src/modules/auth/auth.test.ts` con el ejecutor nativo de Node.js y `tsx`
+- Script `npm test` en `package.json` para ejecución automatizada de pruebas
+
+### Endpoints
+- `POST /api/v1/auth/register` - Registro de nuevos usuarios con email, nombre de usuario y contraseña
+- `POST /api/v1/auth/login` - Inicio de sesión mediante identificador (correo o usuario) y contraseña
+
+### Archivos creados
+- `src/modules/auth/auth.types.ts` - DTOs e interfaces TypeScript para autenticación y payload JWT
+- `src/modules/auth/auth.service.ts` - Lógica de negocio de registro, login, hashing y firma JWT
+- `src/modules/auth/auth.controller.ts` - Controlador HTTP y validaciones de entrada
+- `src/modules/auth/auth.routes.ts` - Definición de rutas públicas de autenticación
+- `src/modules/auth/auth.test.ts` - Suite de pruebas unitarias de hashing y generación de token
+- `src/utils/errors.ts` - Clase de error personalizada con soporte para códigos de estado HTTP
+
+### Archivos modificados
+- `src/app.ts` - Montaje del enrutador de autenticación bajo el prefijo de API
+- `src/config/env.ts` - Tipado y exposición de variables de configuración para JWT
+- `package.json` - Añadido script de test unitario
+
+---
+
 ## v0.2.1 - Modelo de Datos de Autenticación, Migración de Usuarios y Credenciales [SUB-02-1]
 
 ### Añadido
