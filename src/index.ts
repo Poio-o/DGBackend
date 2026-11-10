@@ -8,7 +8,7 @@ const startServer = async () => {
 
   await testDbConnection();
 
-  const server = app.listen(env.PORT, () => {
+  const server = app.listen(env.PORT, '0.0.0.0', () => {
     logger.info(`API escuchando en http://localhost:${env.PORT}`);
     logger.info(`Entorno: ${env.NODE_ENV}`);
     logger.info(`Health check activo en http://localhost:${env.PORT}${env.API_PREFIX}/health`);
