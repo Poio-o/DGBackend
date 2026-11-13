@@ -1,5 +1,43 @@
 # Changelog
 
+## v0.3.0 - Modelado de Especies, Sistema de Evoluciones y Seed Masivo de Digimon
+
+### Añadido
+- Modelos relacionales en Prisma (`prisma/schema.prisma`) para `DigimonSpecies` y `EvolutionPath` con soporte para relaciones de evolución ramificadas.
+- Dataset completo de 704 especies y 4.546 rutas de evolución en `prisma/digimons_data.json` con metadatos completos (nombres, niveles, atributos, tipos, sprites, imágenes oficiales y estadísticas base de HP, SP, ATK, DEF, INT, SPI, SPD).
+- Script de sembrado masivo (`prisma/seed.ts`) con inserción por lotes (*batching*) mediante `createMany` e idempotencia con `skipDuplicates`.
+- Script de ejecución de seed `"seed": "tsx prisma/seed.ts"` en `package.json`.
+- Integración completa con el sistema de autenticación JWT y migraciones traídas de la rama `dev`.
+- Escucha del servidor Express en `0.0.0.0` (`src/index.ts`) para aceptar conexiones tanto locales como de interfaces de red externas (dispositivos móviles / emuladores).
+
+### Base de datos
+- **Tabla `digimon_species`**:
+  - Clave primaria `species_id` (`VARCHAR(50)`).
+  - Metadatos: `name` (`VARCHAR(100)`), `generation` (`VARCHAR(50)`), `attribute` (`VARCHAR(50)` con soporte para atributos compuestos), `type` (`VARCHAR(100)`), `sprite_url` y `full_image_url`.
+  - Estadísticas de combate: `base_hp`, `base_sp`, `base_atk`, `base_def`, `base_int`, `base_spi`, `base_spd`.
+  - Campo de descripción de texto largo `description`.
+- **Tabla `evolution_paths`**:
+  - Identificador autoincremental `id`.
+  - Claves foráneas `from_species_id` y `to_species_id` vinculadas a `digimon_species` con eliminación en cascada (`onDelete: Cascade`).
+  - Requisitos de evolución: `min_level`, `min_friendship`, estadísticas mínimas (`min_hp`, `min_sp`, `min_atk`, etc.) e ítem requerido opcional (`required_item_id`).
+  - Índices en `from_species_id` y `to_species_id` para optimizar consultas de árbol evolutivo.
+
+### Scripts configurados
+```bash
+npm run seed  # Carga de especies y rutas de evolución en PostgreSQL
+```
+
+### Archivos creados
+- `prisma/digimons_data.json` - Datos estructurados de 704 especies y 4.546 evoluciones
+- `prisma/seed.ts` - Script de carga masiva de datos en PostgreSQL
+
+### Archivos modificados
+- `prisma/schema.prisma` - Incorporación de los modelos `DigimonSpecies` y `EvolutionPath` junto a `User` y `Credential`
+- `package.json` - Añadido el script `seed`
+- `src/index.ts` - Configurado `app.listen` con host `0.0.0.0`
+
+---
+
 ## v0.2.3 - Middleware de Autenticación Bearer y Endpoint de Perfil [SUB-02-3]
 
 ### Añadido
