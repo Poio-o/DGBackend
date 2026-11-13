@@ -6,3 +6,73 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model User {
+  id          String       @id @default(cuid())
+  email       String       @unique
+  username    String       @unique
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  credentials Credential[]
+
+  @@map("users")
+}
+
+model Credential {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  provider  String
+  secret    String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@map("credentials")
+}
+
+model DigimonSpecies {
+  speciesId    String   @id @map("species_id") @db.VarChar(50)
+  name         String   @db.VarChar(100)
+  generation   String   @db.VarChar(50)
+  attribute    String   @db.VarChar(50)
+  type         String   @db.VarChar(100)
+  spriteUrl    String   @map("sprite_url") @db.VarChar(255)
+  fullImageUrl String?  @map("full_image_url") @db.VarChar(255)
+  baseHp       Int      @map("base_hp")
+  baseSp       Int      @map("base_sp")
+  baseAtk      Int      @map("base_atk")
+  baseDef      Int      @map("base_def")
+  baseInt      Int      @map("base_int")
+  baseSpi      Int      @map("base_spi")
+  baseSpd      Int      @map("base_spd")
+  description  String?  @db.Text
+
+  evolutionsFrom EvolutionPath[] @relation("EvolutionsFrom")
+  evolutionsTo   EvolutionPath[] @relation("EvolutionsTo")
+
+  @@map("digimon_species")
+}
+
+model EvolutionPath {
+  id             Int             @id @default(autoincrement())
+  fromSpeciesId  String          @map("from_species_id") @db.VarChar(50)
+  toSpeciesId    String          @map("to_species_id") @db.VarChar(50)
+  minLevel       Int             @default(1) @map("min_level")
+  minFriendship  Int             @default(0) @map("min_friendship")
+  minHp          Int             @default(0) @map("min_hp")
+  minSp          Int             @default(0) @map("min_sp")
+  minAtk         Int             @default(0) @map("min_atk")
+  minDef         Int             @default(0) @map("min_def")
+  minInt         Int             @default(0) @map("min_int")
+  minSpi         Int             @default(0) @map("min_spi")
+  minSpd         Int             @default(0) @map("min_spd")
+  requiredItemId String?         @map("required_item_id") @db.VarChar(50)
+
+  fromSpecies DigimonSpecies @relation("EvolutionsFrom", fields: [fromSpeciesId], references: [speciesId], onDelete: Cascade)
+  toSpecies   DigimonSpecies @relation("EvolutionsTo", fields: [toSpeciesId], references: [speciesId], onDelete: Cascade)
+
+  @@index([fromSpeciesId])
+  @@index([toSpeciesId])
+  @@map("evolution_paths")
+}

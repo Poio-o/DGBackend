@@ -5,6 +5,7 @@ import { env } from './config/env';
 import { requestLogger } from './middleware/requestLogger';
 import { errorHandler } from './middleware/error';
 import healthRoutes from './modules/health/health.routes';
+import authRoutes from './modules/auth/auth.routes';
 
 const app = express();
 
@@ -21,8 +22,10 @@ app.use(requestLogger);
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 app.use(env.API_PREFIX, healthRoutes);
+app.use(`${env.API_PREFIX}/auth`, authRoutes);
 if (env.API_PREFIX !== '/api') {
   app.use('/api', healthRoutes);
+  app.use('/api/auth', authRoutes);
 }
 
 app.use((req, res) => {
