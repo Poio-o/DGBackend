@@ -20,6 +20,19 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(requestLogger);
 
+app.get('/', (_req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'DGBackend API funcionando correctamente en Vercel',
+    version: '1.0.0',
+    endpoints: {
+      health: `${env.API_PREFIX}/health`,
+      auth: `${env.API_PREFIX}/auth`,
+      digimons: `${env.API_PREFIX}/digimons`,
+    },
+  });
+});
+
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 app.use(env.API_PREFIX, healthRoutes);
