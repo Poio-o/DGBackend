@@ -1,9 +1,12 @@
 import { PrismaClient } from '@prisma/client';
 import { logger } from '../utils/logger';
 
-export const prisma = new PrismaClient({
-  log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
-});
+const globalForPrisma = globalThis as { prisma?: PrismaClient };
+
+export const prisma =
+  (globalForPrisma.prisma ??= new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
+  }));
 
 export const testDbConnection = async (): Promise<boolean> => {
   try {
