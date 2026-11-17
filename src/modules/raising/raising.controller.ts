@@ -40,6 +40,68 @@ export class RaisingController {
     }
   }
 
+  public static async train(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const userId = req.user?.sub;
+      if (!userId) {
+        throw new AppError('No autenticado', 401);
+      }
+
+      const { id } = req.params;
+      const { stat, newTotal, bonus } = req.body ?? {};
+
+      if (!id || typeof id !== 'string') {
+        throw new AppError('Identificador de Digimon inválido', 400);
+      }
+
+      const result = await RaisingService.trainDigimon(userId, id, {
+        stat,
+        newTotal,
+        bonus,
+      });
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Entrenamiento completado exitosamente',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async rest(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const userId = req.user?.sub;
+      if (!userId) {
+        throw new AppError('No autenticado', 401);
+      }
+
+      const { id } = req.params;
+      if (!id || typeof id !== 'string') {
+        throw new AppError('Identificador de Digimon inválido', 400);
+      }
+
+      const result = await RaisingService.restDigimon(userId, id);
+
+      res.status(200).json({
+        status: 'success',
+        message: 'El Digimon ha descansado correctamente',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   public static async getStatus(
     req: Request,
     res: Response,

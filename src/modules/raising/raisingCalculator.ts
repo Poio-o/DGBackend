@@ -73,5 +73,23 @@ export class RaisingCalculator {
       hunger < RAISING_BALANCE.STARVATION_THRESHOLD
     );
   }
-}
 
+  public static calculateStatTotal(
+    level: number,
+    baseStat: number,
+    npStat: number,
+    bonusStat: number
+  ): number {
+    return level * (baseStat + npStat) + bonusStat;
+  }
+
+  public static calculateBonusFromTotal(
+    level: number,
+    baseStat: number,
+    npStat: number,
+    targetTotal: number
+  ): number {
+    const baseSum = level * (baseStat + npStat);
+    return Math.max(0, targetTotal - baseSum);
+  }
+}

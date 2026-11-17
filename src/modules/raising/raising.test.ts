@@ -7,7 +7,11 @@ import { env } from '../../config/env';
 import { RaisingCalculator } from './raisingCalculator';
 import { RaisingService } from './raising.service';
 import { RaisingRepository } from './raising.repository';
-import { RAISING_BALANCE, type PlayerDigimon } from './raising.types';
+import {
+  RAISING_BALANCE,
+  calculateTotalStats,
+  type PlayerDigimon,
+} from './raising.types';
 import { AppError } from '../../utils/errors';
 
 describe('Raising Temporal Decay Engine - US-07 / SUB-07-1', () => {
@@ -409,7 +413,262 @@ describe('Raising Feeding & Inventory Engine - US-07 / SUB-07-2', () => {
   });
 });
 
-describe('Raising Endpoints HTTP Integration - POST /digimons/:id/feed', () => {
+describe('Raising Training & Resting Engine - US-07 / SUB-07-3', () => {
+  const userId = 'user_trainer_tai';
+  const digimonId = 'digi_wargreymon';
+
+  const createSampleTrainedDigimon = (
+    overrides?: Partial<PlayerDigimon>
+  ): PlayerDigimon => ({
+    id: digimonId,
+    userId,
+    slotNumber: 1,
+    nickname: 'WarGreymon',
+    speciesName: 'WarGreymon',
+    generation: 'Ultimate',
+    attribute: 'Vaccine',
+    type: 'Dragon Man',
+    spriteUrl: '/sprites/wargreymon.png',
+    level: 50,
+    currentExp: 10000,
+    friendship: 90,
+    hunger: 20,
+    fatigue: 10,
+
+    baseHp: 500,
+    baseSp: 200,
+    baseAtk: 180,
+    baseDef: 150,
+    baseInt: 110,
+    baseSpi: 120,
+    baseSpd: 140,
+
+    npHp: 25,
+    npSp: 20,
+    npAtk: 22,
+    npDef: 18,
+    npInt: 15,
+    npSpi: 16,
+    npSpd: 19,
+
+    bonusHp: 0,
+    bonusSp: 0,
+    bonusAtk: 50,
+    bonusDef: 0,
+    bonusInt: 0,
+    bonusSpi: 0,
+    bonusSpd: 0,
+
+    stepsWalked: 15000,
+    expGained: 5000,
+    friendshipGained: 40,
+    isWalking: false,
+
+    lastCalculatedAt: new Date('2026-11-18T12:00:00Z'),
+    ...overrides,
+  });
+
+  beforeEach(() => {
+    RaisingRepository.clear();
+  });
+
+  it('calcula la formula de estadistica total segun level * (base + np) + bonus', () => {
+    const level = 10;
+    const baseAtk = 40;
+    const npAtk = 10;
+    const bonusAtk = 200;
+
+    const total = RaisingCalculator.calculateStatTotal(level, baseAtk, npAtk, bonusAtk);
+    assert.strictEqual(total, 10 * (40 + 10) + 200);
+    assert.strictEqual(total, 700);
+
+    const bonusForTarget = RaisingCalculator.calculateBonusFromTotal(level, baseAtk, npAtk, 850);
+    assert.strictEqual(bonusForTarget, 850 - 10 * (40 + 10));
+    assert.strictEqual(bonusForTarget, 350);
+  });
+
+  it('entrena un stat reemplazando el valor anterior segun la formula sin sumarlo', async () => {
+    const fixedNow = new Date('2026-11-18T12:00:00Z');
+    const digimon = createSampleTrainedDigimon({ lastCalculatedAt: fixedNow });
+    await RaisingRepository.saveDigimon(digimon);
+
+    const baseSum = 50 * (180 + 22);
+    assert.strictEqual(baseSum, 10100);
+
+    const result1 = await RaisingService.trainDigimon(
+      userId,
+      digimonId,
+      { stat: 'ATK', newTotal: 10500 },
+      fixedNow
+    );
+
+    assert.strictEqual(result1.trainedStat, 'ATK');
+    assert.strictEqual(result1.newTotal, 10500);
+    assert.strictEqual(result1.newBonus, 400);
+    assert.strictEqual(result1.totalStats.totalAtk, 10500);
+    assert.strictEqual(result1.digimon.fatigue, 30);
+    assert.strictEqual(result1.digimon.hunger, 30);
+
+    const result2 = await RaisingService.trainDigimon(
+      userId,
+      digimonId,
+      { stat: 'ATK', newTotal: 10600 },
+      fixedNow
+    );
+
+    assert.strictEqual(result2.newTotal, 10600);
+    assert.strictEqual(result2.newBonus, 500);
+    assert.notStrictEqual(result2.newTotal, 10500 + 10600);
+    assert.strictEqual(result2.totalStats.totalAtk, 10600);
+    assert.strictEqual(result2.digimon.fatigue, 50);
+    assert.strictEqual(result2.digimon.hunger, 40);
+  });
+
+  it('reemplaza el bono directamente cuando se pasa el campo bonus', async () => {
+    const fixedNow = new Date('2026-11-18T12:00:00Z');
+    await RaisingRepository.saveDigimon(
+      createSampleTrainedDigimon({ bonusSpd: 20, lastCalculatedAt: fixedNow })
+    );
+
+    const result = await RaisingService.trainDigimon(
+      userId,
+      digimonId,
+      { stat: 'SPD', bonus: 85 },
+      fixedNow
+    );
+
+    assert.strictEqual(result.previousBonus, 20);
+    assert.strictEqual(result.newBonus, 85);
+    assert.strictEqual(result.digimon.bonusSpd, 85);
+  });
+
+  it('bloquea el entrenamiento con 400 si la fatiga es 100', async () => {
+    const fixedNow = new Date('2026-11-18T12:00:00Z');
+    await RaisingRepository.saveDigimon(
+      createSampleTrainedDigimon({ fatigue: 100, lastCalculatedAt: fixedNow })
+    );
+
+    await assert.rejects(
+      async () => {
+        await RaisingService.trainDigimon(
+          userId,
+          digimonId,
+          { stat: 'ATK', bonus: 50 },
+          fixedNow
+        );
+      },
+      (err: any) => {
+        assert.ok(err instanceof AppError);
+        assert.strictEqual(err.statusCode, 400);
+        assert.strictEqual(
+          err.message,
+          'El Digimon está agotado. Necesita descansar antes de entrenar.'
+        );
+        return true;
+      }
+    );
+  });
+
+  it('bloquea el entrenamiento con 400 si el hambre es 100', async () => {
+    const fixedNow = new Date('2026-11-18T12:00:00Z');
+    await RaisingRepository.saveDigimon(
+      createSampleTrainedDigimon({ hunger: 100, fatigue: 0, lastCalculatedAt: fixedNow })
+    );
+
+    await assert.rejects(
+      async () => {
+        await RaisingService.trainDigimon(
+          userId,
+          digimonId,
+          { stat: 'DEF', bonus: 30 },
+          fixedNow
+        );
+      },
+      (err: any) => {
+        assert.ok(err instanceof AppError);
+        assert.strictEqual(err.statusCode, 400);
+        assert.strictEqual(
+          err.message,
+          'El Digimon está famélico. Necesita ser alimentado antes de entrenar.'
+        );
+        return true;
+      }
+    );
+  });
+
+  it('aplica la degradacion temporal antes de validar si el Digimon puede entrenar', async () => {
+    const baseTime = new Date('2026-11-18T00:00:00Z');
+    const tenHoursLater = new Date('2026-11-18T10:00:00Z');
+
+    await RaisingRepository.saveDigimon(
+      createSampleTrainedDigimon({ hunger: 5, lastCalculatedAt: baseTime })
+    );
+
+    await assert.rejects(
+      async () => {
+        await RaisingService.trainDigimon(
+          userId,
+          digimonId,
+          { stat: 'ATK', bonus: 20 },
+          tenHoursLater
+        );
+      },
+      (err: any) => {
+        assert.ok(err instanceof AppError);
+        assert.strictEqual(err.statusCode, 400);
+        return true;
+      }
+    );
+  });
+
+  it('permite descansar con restDigimon recuperando 40 puntos de fatiga', async () => {
+    const fixedNow = new Date('2026-11-18T12:00:00Z');
+    await RaisingRepository.saveDigimon(
+      createSampleTrainedDigimon({ fatigue: 70, lastCalculatedAt: fixedNow })
+    );
+
+    const result = await RaisingService.restDigimon(userId, digimonId, fixedNow);
+
+    assert.strictEqual(result.recoveredFatigue, 40);
+    assert.strictEqual(result.currentFatigue, 30);
+    assert.strictEqual(result.digimon.fatigue, 30);
+  });
+
+  it('un Digimon agotado a 100 puede entrenar de nuevo tras descansar', async () => {
+    const fixedNow = new Date('2026-11-18T12:00:00Z');
+    await RaisingRepository.saveDigimon(
+      createSampleTrainedDigimon({ fatigue: 100, hunger: 20, lastCalculatedAt: fixedNow })
+    );
+
+    const restRes = await RaisingService.restDigimon(userId, digimonId, fixedNow);
+    assert.strictEqual(restRes.currentFatigue, 60);
+
+    const trainRes = await RaisingService.trainDigimon(
+      userId,
+      digimonId,
+      { stat: 'INT', bonus: 40 },
+      fixedNow
+    );
+
+    assert.strictEqual(trainRes.digimon.fatigue, 80);
+    assert.strictEqual(trainRes.newBonus, 40);
+  });
+
+  it('rechaza con 400 si el atributo a entrenar no es valido', async () => {
+    await assert.rejects(
+      async () => {
+        await RaisingService.trainDigimon(userId, digimonId, { stat: 'INVALID' as any });
+      },
+      (err: any) => {
+        assert.ok(err instanceof AppError);
+        assert.strictEqual(err.statusCode, 400);
+        return true;
+      }
+    );
+  });
+});
+
+describe('Raising Endpoints HTTP Integration - Full Life Cycle & Training', () => {
   let server: http.Server;
   let baseUrl: string;
 
@@ -520,6 +779,32 @@ describe('Raising Endpoints HTTP Integration - POST /digimons/:id/feed', () => {
     assert.strictEqual(successJson.data.digimon.friendship, 61);
     assert.strictEqual(successJson.data.remainingQuantity, 4);
 
+    const trainRes = await fetch(`${baseUrl}/api/v1/digimons/${digimonId}/train`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ stat: 'ATK', newTotal: 1000 }),
+    });
+    assert.strictEqual(trainRes.status, 200);
+    const trainJson = (await trainRes.json()) as any;
+    assert.strictEqual(trainJson.status, 'success');
+    assert.strictEqual(trainJson.data.trainedStat, 'ATK');
+    assert.strictEqual(trainJson.data.newTotal, 1000);
+    assert.strictEqual(trainJson.data.totalStats.totalAtk, 1000);
+
+    const restRes = await fetch(`${baseUrl}/api/v1/digimons/${digimonId}/rest`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    });
+    assert.strictEqual(restRes.status, 200);
+    const restJson = (await restRes.json()) as any;
+    assert.strictEqual(restJson.status, 'success');
+    assert.strictEqual(restJson.data.currentFatigue, 0);
+
     const statusRes = await fetch(
       `${baseUrl}/api/v1/digimons/${digimonId}/status`,
       {
@@ -532,5 +817,6 @@ describe('Raising Endpoints HTTP Integration - POST /digimons/:id/feed', () => {
     const statusJson = (await statusRes.json()) as any;
     assert.strictEqual(statusJson.status, 'success');
     assert.strictEqual(statusJson.data.digimon.nickname, 'Gatomon');
+    assert.strictEqual(statusJson.data.totalStats.totalAtk, 1000);
   });
 });

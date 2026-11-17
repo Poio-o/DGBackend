@@ -1,5 +1,37 @@
 # Changelog
 
+## v0.3.3 - Rutinas de Entrenamiento Físico y Mental, Descanso y Cálculo de Estadísticas [SUB-07-3]
+
+### Añadido
+- Endpoint transaccional `POST /api/v1/digimons/:id/train` protegido por autenticación Bearer (`authMiddleware`) para rutinas de entrenamiento de atributos específicos (HP, SP, ATK, DEF, INT, SPI, SPD).
+- Endpoint de descanso `POST /api/v1/digimons/:id/rest` protegido con `authMiddleware` para recuperación activa de fatiga (-40 puntos de fatiga por sesión de descanso acotado a 0).
+- Implementación de la fórmula matemática de estadísticas totales:
+  $$\text{totalStat} = \text{level} \times (\text{baseStat} + \text{npStat}) + \text{bonusStat}$$
+  calculada para los 7 atributos y expuesta en tiempo real en los resultados de entrenamiento, descanso y consulta de estado (`totalStats`).
+- Lógica de reemplazo determinista de estadísticas: al entrenar un atributo, el valor alcanzado reemplaza el registro anterior en lugar de acumularse/sumarse, permitiendo actualizar marcas de rendimiento personal.
+- Validación de reglas de negocio vitales:
+  - Bloqueo de sesiones de entrenamiento si la fatiga es $\ge 100$ (`400 Bad Request` indicando necesidad de descanso).
+  - Bloqueo de sesiones de entrenamiento si el hambre es $\ge 100$ (`400 Bad Request` indicando inanición).
+  - Desgaste físico/mental por entrenamiento (+20 puntos de fatiga, +10 puntos de hambre) acotados al rango [0, 100].
+- Evaluación de degradación temporal pasiva previa antes de ejecutar entrenamientos o descansos.
+- Soporte para desahogo de fatiga: un Digimon agotado recupera energía con `rest` y puede volver a entrenar de inmediato.
+- Batería de pruebas automatizadas ampliada a 33 tests unitarios y de integración HTTP (100% de tests aprobados), con una cobertura global del 82.83% de líneas y superior al 88% en el servicio de crianza.
+
+### Endpoints
+- `POST /api/v1/digimons/:id/train` - Realiza una sesión de entrenamiento sobre una estadística específica (HP, SP, ATK, DEF, INT, SPI, SPD), actualiza el bono/total y aumenta fatiga y hambre.
+- `POST /api/v1/digimons/:id/rest` - Ordena descansar al Digimon para reducir activamente 40 puntos de fatiga acumulada.
+
+### Archivos modificados
+- `src/modules/raising/raising.types.ts` - Tipos `TrainableStat`, `DigimonTotalStats`, `TrainRequestDto`, `TrainResult`, `RestResult` y función pura `calculateTotalStats`.
+- `src/modules/raising/raisingCalculator.ts` - Métodos utilitarios `calculateStatTotal` y `calculateBonusFromTotal`.
+- `src/modules/raising/raising.repository.ts` - Métodos transaccionales `executeTrainTransaction` y `executeRestTransaction`.
+- `src/modules/raising/raising.service.ts` - Implementación de `trainDigimon`, `restDigimon` y exposición de `totalStats` en `getDigimonStatus`.
+- `src/modules/raising/raising.controller.ts` - Controladores `train` y `rest` con validación exhaustiva de parámetros y códigos semánticos.
+- `src/modules/raising/raising.routes.ts` - Registro de rutas protegidas `POST /:id/train` y `POST /:id/rest`.
+- `src/modules/raising/raising.test.ts` - Suites completas de pruebas unitarias y de integración para entrenamiento y descanso (33 tests).
+
+---
+
 ## v0.3.2 - Endpoint Transaccional de Alimentación y Deducción de Inventario [SUB-07-2]
 
 ### Añadido

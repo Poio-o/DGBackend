@@ -5,7 +5,19 @@ export const RAISING_BALANCE = {
   FATIGUE_RECOVERY_PER_HOUR: 15,
   STARVATION_THRESHOLD: 100,
   EXHAUSTION_THRESHOLD: 100,
+  TRAINING_FATIGUE_INCREASE: 20,
+  TRAINING_HUNGER_INCREASE: 10,
+  REST_FATIGUE_REDUCTION: 40,
 } as const;
+
+export type TrainableStat =
+  | 'HP'
+  | 'SP'
+  | 'ATK'
+  | 'DEF'
+  | 'INT'
+  | 'SPI'
+  | 'SPD';
 
 export interface RaisingBalanceConfig {
   hungerPerHour: number;
@@ -30,6 +42,16 @@ export interface TemporalCalculationResult {
   fatigueDelta: number;
   isStarving: boolean;
   isExhausted: boolean;
+}
+
+export interface DigimonTotalStats {
+  totalHp: number;
+  totalSp: number;
+  totalAtk: number;
+  totalDef: number;
+  totalInt: number;
+  totalSpi: number;
+  totalSpd: number;
 }
 
 export interface PlayerDigimon {
@@ -80,6 +102,18 @@ export interface PlayerDigimon {
   lastCalculatedAt: Date | string;
 }
 
+export function calculateTotalStats(digimon: PlayerDigimon): DigimonTotalStats {
+  return {
+    totalHp: digimon.level * (digimon.baseHp + digimon.npHp) + digimon.bonusHp,
+    totalSp: digimon.level * (digimon.baseSp + digimon.npSp) + digimon.bonusSp,
+    totalAtk: digimon.level * (digimon.baseAtk + digimon.npAtk) + digimon.bonusAtk,
+    totalDef: digimon.level * (digimon.baseDef + digimon.npDef) + digimon.bonusDef,
+    totalInt: digimon.level * (digimon.baseInt + digimon.npInt) + digimon.bonusInt,
+    totalSpi: digimon.level * (digimon.baseSpi + digimon.npSpi) + digimon.bonusSpi,
+    totalSpd: digimon.level * (digimon.baseSpd + digimon.npSpd) + digimon.bonusSpd,
+  };
+}
+
 export interface UserInventoryItem {
   id: string;
   userId: string;
@@ -101,4 +135,29 @@ export interface FeedResult {
     friendshipGain: number;
   };
   remainingQuantity: number;
+}
+
+export interface TrainRequestDto {
+  stat: TrainableStat;
+  newTotal?: number;
+  bonus?: number;
+}
+
+export interface TrainResult {
+  digimon: PlayerDigimon;
+  trainedStat: TrainableStat;
+  previousBonus: number;
+  newBonus: number;
+  previousTotal: number;
+  newTotal: number;
+  totalStats: DigimonTotalStats;
+  fatigueGained: number;
+  hungerGained: number;
+}
+
+export interface RestResult {
+  digimon: PlayerDigimon;
+  recoveredFatigue: number;
+  currentFatigue: number;
+  totalStats: DigimonTotalStats;
 }
