@@ -8,12 +8,31 @@ datasource db {
 }
 
 model User {
-  id          String       @id @default(cuid())
-  email       String       @unique
-  username    String       @unique
-  createdAt   DateTime     @default(now()) @map("created_at")
-  updatedAt   DateTime     @updatedAt @map("updated_at")
-  credentials Credential[]
+  id                   String             @id @default(cuid())
+  email                String             @unique
+  username             String             @unique
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+
+  // Economía y Fondos
+  freeCurrency         Int                @default(500) @map("free_currency") 
+  premiumCurrency      Int                @default(0) @map("premium_currency")
+  selectedBackground   String             @default("DefaultFarm") @map("selected_background") @db.VarChar(50)
+
+  // Intercambios
+  dailyNfcTradesLeft   Int                @default(1) @map("daily_nfc_trades_left") // Límite 1 al día
+  monthlyWebTradesLeft Int                @default(3) @map("monthly_web_trades_left") // Límite 3 al mes (de momento)
+  lastTradeResetDate   DateTime?          @map("last_trade_reset_date")
+
+  // Relaciones
+  credentials          Credential[]
+  digimons             UserDigimon[]
+  inventory            UserInventory[]
+  encyclopedia         UserEncyclopedia[]
+  incubatorSlots       IncubatorSlot[]
+  walkLogs             WalkLog[]
+  sentTrades           Trade[]            @relation("SentTrades")
+  receivedTrades       Trade[]            @relation("ReceivedTrades")
 
   @@map("users")
 }
@@ -31,48 +50,210 @@ model Credential {
   @@map("credentials")
 }
 
+// Digimons y Evoluciones
 model DigimonSpecies {
-  speciesId    String   @id @map("species_id") @db.VarChar(50)
-  name         String   @db.VarChar(100)
-  generation   String   @db.VarChar(50)
-  attribute    String   @db.VarChar(50)
-  type         String   @db.VarChar(100)
-  spriteUrl    String   @map("sprite_url") @db.VarChar(255)
-  fullImageUrl String?  @map("full_image_url") @db.VarChar(255)
-  baseHp       Int      @map("base_hp")
-  baseSp       Int      @map("base_sp")
-  baseAtk      Int      @map("base_atk")
-  baseDef      Int      @map("base_def")
-  baseInt      Int      @map("base_int")
-  baseSpi      Int      @map("base_spi")
-  baseSpd      Int      @map("base_spd")
-  description  String?  @db.Text
+  speciesId           String             @id @map("species_id") @db.VarChar(50)
+  name                String             @db.VarChar(100)
+  generation          String             @db.VarChar(50)
+  attribute           String             @db.VarChar(50)
+  type                String             @db.VarChar(100)
+  spriteUrl           String             @map("sprite_url") @db.VarChar(255)
+  fullImageUrl        String?            @map("full_image_url") @db.VarChar(255)
+  baseHp              Int                @map("base_hp")
+  baseSp              Int                @map("base_sp")
+  baseAtk             Int                @map("base_atk")
+  baseDef             Int                @map("base_def")
+  baseInt             Int                @map("base_int")
+  baseSpi             Int                @map("base_spi")
+  baseSpd             Int                @map("base_spd")
+  description         String?            @db.Text
 
-  evolutionsFrom EvolutionPath[] @relation("EvolutionsFrom")
-  evolutionsTo   EvolutionPath[] @relation("EvolutionsTo")
+  // Relaciones
+  evolutionsFrom      EvolutionPath[]    @relation("EvolutionsFrom")
+  evolutionsTo        EvolutionPath[]    @relation("EvolutionsTo")
+  userDigimons        UserDigimon[]
+  encyclopediaEntries UserEncyclopedia[]
 
   @@map("digimon_species")
 }
 
 model EvolutionPath {
-  id             Int             @id @default(autoincrement())
-  fromSpeciesId  String          @map("from_species_id") @db.VarChar(50)
-  toSpeciesId    String          @map("to_species_id") @db.VarChar(50)
-  minLevel       Int             @default(1) @map("min_level")
-  minFriendship  Int             @default(0) @map("min_friendship")
-  minHp          Int             @default(0) @map("min_hp")
-  minSp          Int             @default(0) @map("min_sp")
-  minAtk         Int             @default(0) @map("min_atk")
-  minDef         Int             @default(0) @map("min_def")
-  minInt         Int             @default(0) @map("min_int")
-  minSpi         Int             @default(0) @map("min_spi")
-  minSpd         Int             @default(0) @map("min_spd")
-  requiredItemId String?         @map("required_item_id") @db.VarChar(50)
+  id             Int            @id @default(autoincrement())
+  fromSpeciesId  String         @map("from_species_id") @db.VarChar(50)
+  toSpeciesId    String         @map("to_species_id") @db.VarChar(50)
+  minLevel       Int            @default(1) @map("min_level")
+  minFriendship  Int            @default(0) @map("min_friendship")
+  minHp          Int            @default(0) @map("min_hp")
+  minSp          Int            @default(0) @map("min_sp")
+  minAtk         Int            @default(0) @map("min_atk")
+  minDef         Int            @default(0) @map("min_def")
+  minInt         Int            @default(0) @map("min_int")
+  minSpi         Int            @default(0) @map("min_spi")
+  minSpd         Int            @default(0) @map("min_spd")
+  requiredItemId String?        @map("required_item_id") @db.VarChar(50)
 
-  fromSpecies DigimonSpecies @relation("EvolutionsFrom", fields: [fromSpeciesId], references: [speciesId], onDelete: Cascade)
-  toSpecies   DigimonSpecies @relation("EvolutionsTo", fields: [toSpeciesId], references: [speciesId], onDelete: Cascade)
+  fromSpecies    DigimonSpecies @relation("EvolutionsFrom", fields: [fromSpeciesId], references: [speciesId], onDelete: Cascade)
+  toSpecies      DigimonSpecies @relation("EvolutionsTo", fields: [toSpeciesId], references: [speciesId], onDelete: Cascade)
 
   @@index([fromSpeciesId])
   @@index([toSpeciesId])
   @@map("evolution_paths")
+}
+
+// Digimons del Usuario e Inventario
+model UserDigimon {
+  digimonId  String         @id @default(uuid()) @map("digimon_id") @db.VarChar(36)
+  userId     String         @map("user_id")
+  speciesId  String         @map("species_id") @db.VarChar(50)
+  nickname   String         @db.VarChar(50)
+  level      Int            @default(1)
+  currentExp Int            @default(0) @map("current_exp")
+  friendship Int            @default(0)
+
+  // 7 Stats Base de la criatura
+  baseHp     Int            @map("base_hp")
+  baseSp     Int            @map("base_sp")
+  baseAtk    Int            @map("base_atk")
+  baseDef    Int            @map("base_def")
+  baseInt    Int            @map("base_int")
+  baseSpi    Int            @map("base_spi")
+  baseSpd    Int            @map("base_spd")
+
+  // Natural Power genético inmutable (NP 1 a 30)
+  npHp       Int            @map("np_hp")
+  npSp       Int            @map("np_sp")
+  npAtk      Int            @map("np_atk")
+  npDef      Int            @map("np_def")
+  npInt      Int            @map("np_int")
+  npSpi      Int            @map("np_spi")
+  npSpd      Int            @map("np_spd")
+
+  // Bonos planos de entrenamiento / objetos
+  bonusHp    Int            @default(0) @map("bonus_hp")
+  bonusSp    Int            @default(0) @map("bonus_sp")
+  bonusAtk   Int            @default(0) @map("bonus_atk")
+  bonusDef   Int            @default(0) @map("bonus_def")
+  bonusInt   Int            @default(0) @map("bonus_int")
+  bonusSpi   Int            @default(0) @map("bonus_spi")
+  bonusSpd   Int            @default(0) @map("bonus_spd")
+
+  weight     Int            @default(10)
+  hunger     Int            @default(100)
+  fatigue    Int            @default(0)
+  isWalking  Boolean        @default(false) @map("is_walking")
+
+  // Relaciones
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  species    DigimonSpecies @relation(fields: [speciesId], references: [speciesId], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([speciesId])
+  @@map("user_digimons")
+}
+
+model Item {
+  itemId            String          @id @map("item_id") @db.VarChar(50)
+  name              String          @db.VarChar(100)
+  category          String          @db.VarChar(30)
+  description       String          @db.Text
+  iconUrl           String          @map("icon_url") @db.VarChar(255)
+  isStackable       Boolean         @default(true) @map("is_stackable")
+  maxStack          Int             @default(99) @map("max_stack")
+  usablePlatform    String          @default("AMBAS") @map("usable_platform") @db.VarChar(20)
+  price             Int             @default(0)
+  hungerRestored    Int             @default(0) @map("hunger_restored")
+  friendshipGain    Int             @default(0) @map("friendship_gain")
+  fatigueRestored   Int             @default(0) @map("fatigue_restored")
+  weightChange      Int             @default(0) @map("weight_change")
+  statBoostType     String          @default("NINGUNA") @map("stat_boost_type") @db.VarChar(10)
+  statBoostValue    Int             @default(0) @map("stat_boost_value")
+  walkMultiplier    Float           @default(1.0) @map("walk_multiplier")
+  walkDurationSteps Int             @default(0) @map("walk_duration_steps")
+  stepsToHatch      Int             @default(0) @map("steps_to_hatch")
+
+  inventories       UserInventory[]
+
+  @@map("items_catalog")
+}
+
+model UserInventory {
+  id       Int    @id @default(autoincrement())
+  userId   String @map("user_id")
+  itemId   String @map("item_id") @db.VarChar(50)
+  quantity Int    @default(1)
+
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item     Item   @relation(fields: [itemId], references: [itemId], onDelete: Cascade)
+
+  @@unique([userId, itemId])
+  @@index([userId])
+  @@index([itemId])
+  @@map("user_inventory")
+}
+
+// Digipedia
+model UserEncyclopedia {
+  userId     String         @map("user_id")
+  speciesId  String         @map("species_id") @db.VarChar(50)
+  isUnlocked Boolean        @default(false) @map("is_unlocked")
+  unlockedAt DateTime?      @map("unlocked_at")
+
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  species    DigimonSpecies @relation(fields: [speciesId], references: [speciesId], onDelete: Cascade)
+
+  @@id([userId, speciesId])
+  @@map("user_encyclopedia")
+}
+
+// 5. Incubadora
+model IncubatorSlot {
+  id               Int       @id @default(autoincrement())
+  userId           String    @map("user_id")
+  slotNumber       Int       @map("slot_number") // Del 1 al 4
+  eggItemId        String?   @map("egg_item_id") @db.VarChar(50)
+  placedAt         DateTime? @map("placed_at")
+  hatchReadyAt     DateTime? @map("hatch_ready_at")
+  stepsContributed Int       @default(0) @map("steps_contributed")
+
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, slotNumber])
+  @@map("incubator_slots")
+}
+
+// 6. Paseos Offline
+model WalkLog {
+  sessionId        String   @id @map("session_id") @db.VarChar(50)
+  userId           String   @map("user_id")
+  stepsCount       Int      @map("steps_count")
+  startTime        BigInt   @map("start_time")
+  endTime          BigInt   @map("end_time")
+  expGained        Int      @default(0) @map("exp_gained")
+  friendshipGained Int      @default(0) @map("friendship_gained")
+  syncedAt         DateTime @default(now()) @map("synced_at")
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("walk_logs")
+}
+
+// Intercambios Web y NFC
+model Trade {
+  id                String    @id @default(uuid()) @db.VarChar(36)
+  senderUserId      String    @map("sender_user_id")
+  receiverUserId    String    @map("receiver_user_id")
+  senderDigimonId   String    @map("sender_digimon_id") @db.VarChar(36)
+  receiverDigimonId String    @map("receiver_digimon_id") @db.VarChar(36)
+  tradeType         String    @map("trade_type") @db.VarChar(10) // "WEB" o "NFC"
+  status            String    @default("PENDING") @db.VarChar(20) // "PENDING", "ACCEPTED", "REJECTED", "CANCELLED"
+  createdAt         DateTime  @default(now()) @map("created_at")
+  completedAt       DateTime? @map("completed_at")
+
+  sender            User      @relation("SentTrades", fields: [senderUserId], references: [id], onDelete: Cascade)
+  receiver          User      @relation("ReceivedTrades", fields: [receiverUserId], references: [id], onDelete: Cascade)
+
+  @@index([senderUserId])
+  @@index([receiverUserId])
+  @@map("trades")
 }
