@@ -1,5 +1,57 @@
 # Changelog
 
+## v0.3.2 - Endpoint Transaccional de Alimentación y Deducción de Inventario [SUB-07-2]
+
+### Añadido
+- Endpoint transaccional `POST /api/v1/digimons/:id/feed` protegido por autenticación Bearer (`authMiddleware`).
+- Endpoint de consulta de estado fisiológico actualizado `GET /api/v1/digimons/:id/status`.
+- Integración del cálculo de degradación temporal previo ($\Delta t$) con `RaisingCalculator` antes de aplicar los efectos nutricionales del alimento.
+- Lógica de alimentación con reducción de hambre según `hungerRestore` (acotado con límite inferior a $\ge 0$) e incremento de amistad según `friendshipGain` (acotado con límite superior a $\le 100$).
+- Consumo atómico de 1 unidad del inventario del usuario (`remainingQuantity`) y validación de existencias.
+- Catálogo de alimentos desacoplado (`src/modules/raising/items.catalog.ts`) con simulación de ítems (`meat_common`, `meat_giant`, `sirloin`) listo para migración transparente a PostgreSQL/Prisma.
+- Capa de persistencia desacoplada `RaisingRepository` (`src/modules/raising/raising.repository.ts`) con soporte transaccional para actualizar el estado del Digimon y descontar el ítem de forma indivisible.
+- Controlador `RaisingController` (`src/modules/raising/raising.controller.ts`) y enrutador `raisingRoutes` (`src/modules/raising/raising.routes.ts`) con manejo de errores centralizado y validaciones exhaustivas de entrada (400, 401, 403, 404).
+- Modelos TypeScript alineados con las data classes de Android/DGWalker: `PlayerDigimon` (con `slotNumber: number | null` desacoplado de la granja) y `UserInventoryItem`.
+- Batería de 10 nuevas pruebas (unitarias e integración HTTP completa con servidor Express en tiempo de ejecución), totalizando 24 pruebas que cubren más del 85% de las líneas del módulo de crianza.
+
+### Endpoints
+- `POST /api/v1/digimons/:id/feed` - Alimenta a un Digimon deduciendo 1 unidad del inventario del usuario y calculando la degradación previa.
+- `GET /api/v1/digimons/:id/status` - Obtiene el estado actual del Digimon con la degradación temporal aplicada al instante de consulta.
+
+### Archivos creados
+- `src/modules/raising/items.catalog.ts` - Catálogo tipado de alimentos con propiedades nutricionales y función de búsqueda
+- `src/modules/raising/raising.repository.ts` - Repositorio en memoria con ejecución transaccional atómica de alimentación
+- `src/modules/raising/raising.controller.ts` - Controlador REST con validaciones de usuario, parámetros y cuerpo de petición
+- `src/modules/raising/raising.routes.ts` - Enrutador protegido por `authMiddleware`
+
+### Archivos modificados
+- `src/modules/raising/raising.types.ts` - Definición de interfaces `PlayerDigimon`, `UserInventoryItem`, `FeedRequestDto` y `FeedResult`
+- `src/modules/raising/raising.service.ts` - Implementación de `feedDigimon` y `getDigimonStatus` con evaluación de degradación
+- `src/modules/raising/raising.test.ts` - Nuevas suites de pruebas unitarias y de integración HTTP
+- `src/app.ts` - Montaje de las rutas de crianza en `${env.API_PREFIX}/digimons`, `/api/digimons` y `/digimons`
+
+---
+
+## v0.3.1 - Motor de Cálculo de Degradación Temporal y Recuperación de Energía [SUB-07-1]
+
+### Añadido
+- Módulo de crianza en `src/modules/raising/` con arquitectura desacoplada para simulación del ciclo de vida y desgaste fisiológico.
+- Motor de cálculo temporal determinista `RaisingCalculator` (`src/modules/raising/raisingCalculator.ts`) basado en evaluación delta bajo demanda ($\Delta t = \text{targetTime} - \text{lastCalculatedAt}$).
+- Fórmulas de balance numérico con incremento pasivo de hambre (+10 puntos/hora) y recuperación pasiva de fatiga en reposo (-15 puntos/hora).
+- Normalización y acotamiento de valores (*clamping*) dentro del rango estricto [0, 100] y protección contra marcas de tiempo desincronizadas.
+- Detección de estados fisiológicos críticos mediante banderas booleanas (`isStarving` ante hambre $\ge 100$ e `isExhausted` ante fatiga $\ge 100$).
+- Constantes de balance tipadas `RAISING_BALANCE` e interfaces en `src/modules/raising/raising.types.ts` con soporte para inyección de configuraciones personalizadas.
+- Servicio `RaisingService` (`src/modules/raising/raising.service.ts`) con método `processTemporalDecay` y evaluador de condiciones de entrenamiento `checkTrainingEligibility`.
+- Batería de 9 pruebas unitarias automatizadas en `src/modules/raising/raising.test.ts` con un 92.97% de cobertura de líneas, superando el 80% requerido en la Definition of Done.
+
+### Archivos creados
+- `src/modules/raising/raising.types.ts` - Constantes de balance e interfaces de estado y resultados temporales
+- `src/modules/raising/raisingCalculator.ts` - Motor matemático de cálculo delta, clamping y elegibilidad de entrenamiento
+- `src/modules/raising/raising.service.ts` - Capa de servicio para procesamiento de degradación y reglas de negocio
+- `src/modules/raising/raising.test.ts` - Suite de pruebas unitarias del motor de cálculo temporal
+
+---
+
 ## v0.3.0 - Modelado de Especies, Sistema de Evoluciones y Seed Masivo de Digimon
 
 ### Añadido
