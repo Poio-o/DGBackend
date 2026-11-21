@@ -102,7 +102,33 @@ export interface PlayerDigimon {
   lastCalculatedAt: Date | string;
 }
 
-export function calculateTotalStats(digimon: PlayerDigimon): DigimonTotalStats {
+export type DigimonStatsInput = Pick<
+  PlayerDigimon,
+  | 'level'
+  | 'baseHp'
+  | 'baseSp'
+  | 'baseAtk'
+  | 'baseDef'
+  | 'baseInt'
+  | 'baseSpi'
+  | 'baseSpd'
+  | 'npHp'
+  | 'npSp'
+  | 'npAtk'
+  | 'npDef'
+  | 'npInt'
+  | 'npSpi'
+  | 'npSpd'
+  | 'bonusHp'
+  | 'bonusSp'
+  | 'bonusAtk'
+  | 'bonusDef'
+  | 'bonusInt'
+  | 'bonusSpi'
+  | 'bonusSpd'
+>;
+
+export function calculateTotalStats(digimon: DigimonStatsInput): DigimonTotalStats {
   return {
     totalHp: digimon.level * (digimon.baseHp + digimon.npHp) + digimon.bonusHp,
     totalSp: digimon.level * (digimon.baseSp + digimon.npSp) + digimon.bonusSp,
